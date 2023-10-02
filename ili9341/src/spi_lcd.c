@@ -15,17 +15,29 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "esp_system.h"
-#include "driver/spi_master.h"
-#include "soc/gpio_struct.h"
-#include "driver/gpio.h"
-#include "esp_heap_caps.h"
+#include "zephyr/kernel.h"
+#include <zephyr/kernel.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/spi.h>
 
-#include "sdkconfig.h"
+#include <hal/spi_hal.h>
+
+#include "spi_lcd.h"
+//#include "freertos/task.h"
+// #include "esp_system.h"
+//#include "driver/spi_master.h"
+// #include "soc/gpio_struct.h"
+// #include "driver/gpio.h"
+// #include "esp_heap_caps.h"
+
+// #include "sdkconfig.h"
 
 
+
+#define SPI_OP SPI_OP_MODE_MASTER | SPI_MODE_CPOL | SPI_MODE_CPHA | SPI_WORD_SET(8) | SPI_LINES_SINGLE
+
+/********************* SPI CONFIGS ****************************************/
 #if 0
 #define PIN_NUM_MISO 25
 #define PIN_NUM_MOSI 23
@@ -44,9 +56,35 @@
 #define PIN_NUM_BCKL CONFIG_HW_LCD_BL_GPIO
 #endif
 
+/* Below is not idiomatic Zephyr. Probably move to device tree */
+struct spi_config spi_cfg = {
+	.frequency = 100000,
+	.operation = SPI_OP,
+	.slave = 0,
+	.cs = {
+		.delay = 0,
+		.gpio = {
+			.dt_flags = GPIO_ACTIVE_LOW,
+			.pin = 10,
+			.port = 0
+		}
+	}
+};
+
 //You want this, especially at higher framerates. The 2nd buffer is allocated in iram anyway, so isn't really in the way.
 #define DOUBLE_BUFFER
 
+#ifndef DOUBLE_BUFFER
+volatile static uint16_t *currFbPtr=NULL;
+#else
+//Warning: This gets squeezed into IRAM.
+static uint32_t *currFbPtr=NULL;
+#endif
+
+extern int16_t lcdpal[256];
+
+void displayTask(void *dummy1, void *dummy2, void *dummy3);
+void iliTransferTask(void *dummy1, void *dummy2, void *dummy3);
 
 /*
  The LCD needs a bunch of command/argument values to be initialized. They are stored in this struct.
@@ -115,68 +153,103 @@ static const ili_init_cmd_t ili_init_cmds[]={
 
 #endif
 
-static spi_device_handle_t spi;
+
+struct spi_buf spi_buf_ilicmd = {.buf = &ili_init_cmds, .len = sizeof(ili_init_cmd_t)};
+
+struct spi_buf_set tx_buffer;
+
+const struct device *spi_dev_p = DEVICE_DT_GET(DT_NODELABEL(spi2));
+const struct device *gpio_dev_p = DEVICE_DT_GET(DT_NODELABEL(gpio0));
 
 
 //Send a command to the ILI9341. Uses spi_device_transmit, which waits until the transfer is complete.
-void ili_cmd(spi_device_handle_t spi, const uint8_t cmd) 
+void ili_cmd(const struct device* spidevp, const struct spi_buf *buffer) 
 {
-    esp_err_t ret;
-    spi_transaction_t t;
-    memset(&t, 0, sizeof(t));       //Zero out the transaction
-    t.length=8;                     //Command is 8 bits
-    t.tx_buffer=&cmd;               //The data is the cmd itself
-    t.user=(void*)0;                //D/C needs to be set to 0
-    ret=spi_device_transmit(spi, &t);  //Transmit!
-    assert(ret==ESP_OK);            //Should have had no issues.
+    tx_buffer.buffers = buffer;
+    tx_buffer.count = 1;
+    uint8_t ret;
+    ret = gpio_pin_set_raw(gpio_dev_p, ILI9341_DC, ILI9341_CMD);
+    ret |= spi_write(spidevp, &spi_cfg, &tx_buffer);
+    __ASSERT(ret == 0, "SPI Write Failed");
 }
+
+
+#define MEM_PER_TRANS 320*2 //in 16-bit words
+
+/* Binary semaphore, starts as available */
+K_SEM_DEFINE(dispSem, 1, 1);
+K_SEM_DEFINE(dispDoneSem, 1, 1);
+
+/* Stack Symbol and size for display task */
+K_THREAD_STACK_DEFINE(displaythread_stack, ILI9341_STACK_SIZE);
+struct k_thread displaythread_data;
+
+K_THREAD_STACK_DEFINE(iliTransferthread_stack, ILI9341_STACK_SIZE);
+struct k_thread iliTransferthread_data;
+
+void spi_lcd_init() {
+	printf("spi_lcd_init()\n");
+
+#ifdef DOUBLE_BUFFER
+    currFbPtr = k_malloc(320*240);        
+#endif
+    k_thread_create(&displaythread_data, displaythread_stack,
+                    K_THREAD_STACK_SIZEOF(displaythread_stack),
+                    displayTask, NULL, NULL, NULL,
+                    5, 0, K_FOREVER);
+    k_thread_name_set(&displaythread_data, "display_thread");
+    //k_thread_cpu_pin(&displaythread_data, 1); //Pin to core 1
+    k_thread_start(&displaythread_data);
+
+    k_thread_create(&iliTransferthread_data, iliTransferthread_stack,
+                K_THREAD_STACK_SIZEOF(iliTransferthread_stack),
+                iliTransferTask, NULL, NULL, NULL,
+                5, 0, K_FOREVER);
+    k_thread_name_set(&iliTransferthread_data, "iliTransfer_thread");
+    //k_thread_cpu_pin(&displaythread_data, 1); //Pin to core 1
+    k_thread_start(&iliTransferthread_data);
+}
+
 
 //Send data to the ILI9341. Uses spi_device_transmit, which waits until the transfer is complete.
-void ili_data(spi_device_handle_t spi, const uint8_t *data, int len) 
+void ili_data(const struct device* spidevp, uint8_t *data, int len) 
 {
-    esp_err_t ret;
-    spi_transaction_t t;
-    if (len==0) return;             //no need to send anything
-    memset(&t, 0, sizeof(t));       //Zero out the transaction
-    t.length=len*8;                 //Len is in bytes, transaction length is in bits.
-    t.tx_buffer=data;               //Data
-    t.user=(void*)1;                //D/C needs to be set to 1
-    ret=spi_device_transmit(spi, &t);  //Transmit!
-    assert(ret==ESP_OK);            //Should have had no issues.
-}
+    struct spi_buf databuf;
+    databuf.buf = data;
+    databuf.len = len;
 
-//This function is called (in irq context!) just before a transmission starts. It will
-//set the D/C line to the value indicated in the user field.
-void ili_spi_pre_transfer_callback(spi_transaction_t *t) 
-{
-    int dc=(int)t->user;
-    gpio_set_level(PIN_NUM_DC, dc);
+    tx_buffer.buffers = &databuf;
+    tx_buffer.count = 1;
+
+    uint8_t ret;
+    ret = gpio_pin_set_raw(gpio_dev_p, ILI9341_DC, ILI9341_DATA); 
+    ret |= spi_write(spidevp, &spi_cfg, &tx_buffer);
+    __ASSERT(ret == 0, "SPI Write Failed");
 }
 
 //Initialize the display
-void ili_init(spi_device_handle_t spi) 
+void ili_init(const struct device* spidevp) 
 {
     int cmd=0;
-    //Initialize non-SPI GPIOs
-    gpio_set_direction(PIN_NUM_DC, GPIO_MODE_OUTPUT);
-    gpio_set_direction(PIN_NUM_RST, GPIO_MODE_OUTPUT);
-    //gpio_set_direction(PIN_NUM_BCKL, GPIO_MODE_OUTPUT);
 
     //Reset the display
-    gpio_set_level(PIN_NUM_RST, 0);
-    vTaskDelay(100 / portTICK_RATE_MS);
-    gpio_set_level(PIN_NUM_RST, 1);
-    vTaskDelay(100 / portTICK_RATE_MS);
+    gpio_pin_set_raw(gpio_dev_p, ILI9341_RESET, 0);
+    k_usleep(100);
+    gpio_pin_set_raw(gpio_dev_p, ILI9341_RESET, 1);
+    k_usleep(100);
 
     //Send all the commands
     while (ili_init_cmds[cmd].databytes!=0xff) {
-        uint8_t dmdata[16];
-        ili_cmd(spi, ili_init_cmds[cmd].cmd);
-        //Need to copy from flash to DMA'able memory
+        uint8_t cmdbuf;
+        cmdbuf = ili_init_cmds[cmd].cmd;
+        struct spi_buf spi_buf_ilicmd = {.buf = &cmdbuf, .len = 1};
+        ili_cmd(spidevp, &spi_buf_ilicmd);
+        uint8_t dmdata[16]; //This is to be used with DMA later
         memcpy(dmdata, ili_init_cmds[cmd].data, 16);
-        ili_data(spi, dmdata, ili_init_cmds[cmd].databytes&0x1F);
+        //struct spi_buf spi_buf_ilidata = {.buf = &dmdata, .len = (ili_init_cmds[cmd].databytes & 0x1F)};
+        ili_data(spidevp, dmdata, (ili_init_cmds[cmd].databytes & 0x1F));
         if (ili_init_cmds[cmd].databytes&0x80) {
-            vTaskDelay(100 / portTICK_RATE_MS);
+            k_usleep(500);
         }
         cmd++;
     }
@@ -189,6 +262,82 @@ void ili_init(spi_device_handle_t spi)
 #endif
 
 }
+
+int16_t lcdpal[256];
+void displayTask(void *dummy1, void *dummy2, void *dummy3)
+{
+	ARG_UNUSED(dummy1);
+	ARG_UNUSED(dummy2);
+	ARG_UNUSED(dummy3);
+    int x,i;
+    int idx = 0;
+    static uint16_t *dmamem;
+    static struct spi_buf spi_disp_buf;
+
+    printf("Starting Display Task\n");
+    //Initialize the LCD
+    ili_init(spi_dev_p);
+    dmamem = k_malloc(MEM_PER_TRANS*2);
+    spi_disp_buf.buf = &dmamem;
+    spi_disp_buf.len = MEM_PER_TRANS*2;
+
+    //k_sem_give(&dispDoneSem);
+    while(1)
+    {
+        //k_sem_take(&dispSem, K_FOREVER);
+        if(idx % 4 == 0)
+        {
+            printf("Display Task Frame\n");
+        }
+        //send_header_start(spi_dev_p, 0, 0, 320, 240);
+        //send_header_cleanup(spi_dev_p);
+
+        for(x = 0; x<320*240; x+=MEM_PER_TRANS)
+        {
+            // for(i = 0; i<MEM_PER_TRANS; i+=4)
+            // {
+			// 	uint32_t d=currFbPtr[(x+i)/4];
+			// 	dmamem[i+0]=lcdpal[(d>>0)&0xff];
+			// 	dmamem[i+1]=lcdpal[(d>>8)&0xff];
+			// 	dmamem[i+2]=lcdpal[(d>>16)&0xff];
+			// 	dmamem[i+3]=lcdpal[(d>>24)&0xff];                
+            // }
+
+            // ili_data(spi_dev_p, (uint8_t *)dmamem, MEM_PER_TRANS*16);
+#ifndef DOUBLE_BUFFER
+		    xSemaphoreGive(dispDoneSem);
+#endif  
+        }
+        idx++;
+        k_msleep(50);
+    }
+}
+
+void iliTransferTask(void *dummy1, void *dummy2, void *dummy3)
+{
+	ARG_UNUSED(dummy1);
+	ARG_UNUSED(dummy2);
+	ARG_UNUSED(dummy3);
+    while(1)
+    {
+        printf("Hello from iliTransfer Task\n");
+        k_msleep(500);
+    }
+}
+
+/* TO BE PORTED BELOW */
+
+/* 
+
+//This function is called (in irq context!) just before a transmission starts. It will
+//set the D/C line to the value indicated in the user field.
+void ili_spi_pre_transfer_callback(spi_transaction_t *t) 
+{
+    int dc=(int)t->user;
+    gpio_set_level(PIN_NUM_DC, dc);
+}
+
+
 
 
 static void send_header_start(spi_device_handle_t spi, int xpos, int ypos, int w, int h)
@@ -402,3 +551,5 @@ void spi_lcd_init() {
 	xTaskCreatePinnedToCore(&displayTask, "display", 6000, NULL, 6, NULL, 1);
 #endif
 }
+
+*/

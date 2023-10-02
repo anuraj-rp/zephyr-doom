@@ -1,5 +1,5 @@
 
 &spi2 {
     status = "okay";
-    clock-frequency = < 100000 >;
+    clock-frequency = < 40000000 >;
 };
