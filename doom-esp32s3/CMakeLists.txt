@@ -25,7 +25,7 @@ set(prboom_wad_src_dir ${CMAKE_CURRENT_SOURCE_DIR}/prboom-wad-tables)
 set(prboom_wad_build_dir ${CMAKE_CURRENT_BINARY_DIR}/prboom-wad-tables)
 
 set(PRBOOM_WAD_DIR ${prboom_wad_build_dir}/lib)
-set(PRBOOM_INCLUDE_DIR ${prboom_wad_src_dir}/include)
+set(PRBOOM_WAD_INCLUDE_DIR ${prboom_wad_src_dir}/include)
 
 if(CMAKE_GENERATOR STREQUAL "Unix Makefiles")
 # https://www.gnu.org/software/make/manual/html_node/MAKE-Variable.html
@@ -58,7 +58,43 @@ add_dependencies(
 )
 
 set_target_properties(prboom_wad_lib PROPERTIES IMPORTED_LOCATION ${PRBOOM_WAD_DIR}/libprboom_wad_tables.a)
-set_target_properties(prboom_wad_lib PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${PRBOOM_INCLUDE_DIR})
+set_target_properties(prboom_wad_lib PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${PRBOOM_WAD_INCLUDE_DIR})
+
+
+# Build prboom.a
+
+set(prboom_src_dir ${CMAKE_CURRENT_SOURCE_DIR}/prboom)
+set(prboom_build_dir ${CMAKE_CURRENT_BINARY_DIR}/prboom)
+
+set(PRBOOM_DIR ${prboom_build_dir}/lib)
+set(PRBOOM_INCLUDE_DIR ${prboom_src_dir}/include)
+
+ExternalProject_Add(
+    prboom
+    PREFIX ${prboom_build_dir}
+    SOURCE_DIR ${prboom_src_dir}
+    BINARY_DIR ${prboom_src_dir}
+    DOWNLOAD_COMMAND ""
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND
+    ${submake}
+    PREFIX=${prboom_build_dir}
+    CC=${CMAKE_C_COMPILER}
+    AR=${CMAKE_AR}
+    CFLAGS=${external_project_cflags}
+    INSTALL_COMMAND ""      # This particular build system has no install command
+    BUILD_BYPRODUCTS ${PRBOOM_DIR}/libprboom.a    
+)
+
+add_library(prboom_lib STATIC IMPORTED GLOBAL)
+add_dependencies(
+    prboom_lib
+    prboom
+)
+
+set_target_properties(prboom_lib PROPERTIES IMPORTED_LOCATION ${PRBOOM_DIR}/libprboom.a)
+set_target_properties(prboom_lib PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${PRBOOM_INCLUDE_DIR})
+
 
 target_link_libraries(app PUBLIC prboom_wad_lib)
 
