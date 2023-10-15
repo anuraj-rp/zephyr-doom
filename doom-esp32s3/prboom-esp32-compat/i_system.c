@@ -89,6 +89,8 @@
 #include "dma.h"
 #include "esp_timer.h"
 
+#include <zephyr/kernel.h>
+
 #ifdef __GNUG__
 #pragma implementation "i_system.h"
 #endif
@@ -116,8 +118,9 @@ int realtime=0;
 
 void I_uSleep(unsigned long usecs)
 {
-//TODO: FreeRTOS to Zephyr
+	// FreeRTOS to Zephyr
 	// vTaskDelay(usecs/1000);
+	k_msleep(usecs/1000);
 }
 
 static unsigned long getMsTicks() {
@@ -134,11 +137,9 @@ static unsigned long getMsTicks() {
 
 int I_GetTime_RealTime (void)
 {
-//TODO: FreeRTOS to Zephyr
   unsigned long thistimereply;
   thistimereply = ((esp_timer_get_time() * TICRATE) / 1000000);
   return thistimereply;
-
 }
 
 const int displaytime=0;
@@ -355,7 +356,8 @@ const char *I_DoomExeDir(void)
 char* I_FindFile(const char* wfname, const char* ext)
 {
   char *p;
-  p = malloc(strlen(wfname)+4);
+  //FreeRTOS-->Zephyr
+  p = k_malloc(strlen(wfname)+4);
   sprintf(p, "%s.%s", wfname, ext);
   return NULL;
 }

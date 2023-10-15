@@ -3,6 +3,14 @@
 ## [0.0.0] - 2023-10-15
 
 ### Added OR Changed
+- Ported prboom-esp32-compat/i_system.c to Zephyr
+
+### Status
+- The libraries prboom, prboom_esp32s3, prboom_wad_tables build properly with zephyr west build tool 
+
+## [0.0.0] - 2023-10-15
+
+### Added OR Changed
 - First buildable commit building the prboom-esp32-compat library
 - prboom-esp32-compat was using wad files from SD card. Removed all SD card functions
   and replaced it with functions to read from SPI flash from https://github.com/anuraj-rp/esp32-doom
