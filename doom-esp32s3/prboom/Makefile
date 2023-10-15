@@ -13,7 +13,7 @@ LIBRARY := $(LIB_DIR)/libprboom.a
 INC_FLAGS := -I$(INC_DIR)
 # CFlags
 CFLAGS += -Wno-error=char-subscripts -Wno-error=unused-value -Wno-error=parentheses -Wno-error=int-to-pointer-cast -Wno-pointer-sign \
-		-Wno-unused-but-set-variable -Wno-maybe-uninitialized
+		-Wno-unused-but-set-variable -Wno-maybe-uninitialized -Wno-misleading-indentation
 		
 .PHONY: all clean
 

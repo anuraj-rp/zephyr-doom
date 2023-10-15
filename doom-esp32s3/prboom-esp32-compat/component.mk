@@ -7,7 +7,7 @@
 # please read the SDK documents if you need to do this.
 #
 
-COMPONENT_ADD_INCLUDEDIRS += ../prboom
+#COMPONENT_ADD_INCLUDEDIRS += ../prboom
 
 #include $(IDF_PATH)/make/component_common.mk
 

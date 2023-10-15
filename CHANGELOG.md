@@ -3,6 +3,16 @@
 ## [0.0.0] - 2023-10-15
 
 ### Added OR Changed
+- First buildable commit building the prboom-esp32-compat library
+- prboom-esp32-compat was using wad files from SD card. Removed all SD card functions
+  and replaced it with functions to read from SPI flash from https://github.com/anuraj-rp/esp32-doom
+  The SD card version functions are here - https://github.com/anuraj-rp/doom-espidf
+- commented out all FreeRTOS function calls from prboom-esp32-compat
+- Excluded psxcontroller.c from build using Makefile filter-out(Thanks ChatGPT)
+
+## [0.0.0] - 2023-10-15
+
+### Added OR Changed
 - The build was failing because of clashing files called md5.h/.c in components/crypto/include in espressif hal and prboom.
   Fixed it by removing the espressif_hal include path in top-level CMakeLists.txt and prepending prboom path before z_includes
 - prboom linking failed because it could not find prboom-wad-tables/include path.

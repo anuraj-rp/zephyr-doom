@@ -52,10 +52,10 @@
 #include "st_stuff.h"
 #include "lprintf.h"
 
-//#include "rom/ets_sys.h" // TODO: FreeRTOS-Zephyr
+// #include "rom/ets_sys.h" // TODO: FreeRTOS-Zephyr
 #include "spi_lcd.h"
 
-//#include "esp_heap_caps.h" // TODO: FreeRTOS-Zephyr
+#include "esp_heap_caps.h" // TODO: FreeRTOS-Zephyr
 
 int use_fullscreen=0;
 int use_doublebuffer=0;

@@ -12,7 +12,9 @@ LIBRARY := $(LIB_DIR)/libprboom_wad_tables.a
 
 # Include paths
 INC_FLAGS := -I$(INC_DIR)
-
+# CFLAGS
+CFLAGS += -Wno-error=char-subscripts -Wno-error=unused-value -Wno-error=parentheses -Wno-error=int-to-pointer-cast -Wno-pointer-sign \
+		-Wno-unused-but-set-variable -Wno-maybe-uninitialized -Wno-misleading-indentation
 .PHONY: all clean
 
 all: $(LIBRARY)

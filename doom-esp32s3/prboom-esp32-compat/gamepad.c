@@ -25,9 +25,9 @@
 #include "lprintf.h"
 
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/queue.h"
+// #include "freertos/FreeRTOS.h"
+// #include "freertos/task.h"
+// #include "freertos/queue.h"
 #include "driver/gpio.h"
 
 //The gamepad uses keyboard emulation, but for compilation, these variables need to be placed
@@ -77,12 +77,14 @@ void gamepadPoll(void)
 {
 }
 
-static xQueueHandle gpio_evt_queue = NULL;
+//TODO: FreeRTOS to Zephyr
+//static xQueueHandle gpio_evt_queue = NULL;
 
 static void IRAM_ATTR gpio_isr_handler(void* arg)
 {
     uint32_t gpio_num = (uint32_t) arg;
-    xQueueSendFromISR(gpio_evt_queue, &gpio_num, NULL);
+//TODO: FreeRTOS to Zephyr
+    // xQueueSendFromISR(gpio_evt_queue, &gpio_num, NULL);
 /*			event_t ev;
 			int level = gpio_get_level(gpio_num);
 			for (int i=0; keymap[i].key!=NULL; i++)
@@ -101,7 +103,8 @@ void gpioTask(void *arg) {
 	int level;
 	event_t ev;
     for(;;) {
-        if(xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY)) {
+//TODO: FreeRTOS to Zephyr
+        // if(xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY)) {
 			for (int i=0; keymap[i].key!=NULL; i++)
 				if(keymap[i].gpio == io_num)
 				{
@@ -111,7 +114,7 @@ void gpioTask(void *arg) {
 					ev.data1=*keymap[i].key;
 					D_PostEvent(&ev);
 				}
-        }
+        // }
     }
 }
 
@@ -143,9 +146,11 @@ void jsInit()
 
 
     //create a queue to handle gpio event from isr
-    gpio_evt_queue = xQueueCreate(10, sizeof(uint32_t));
+//TODO: FreeRTOS to Zephyr
+    // gpio_evt_queue = xQueueCreate(10, sizeof(uint32_t));
     //start gpio task
-	xTaskCreatePinnedToCore(&gpioTask, "GPIO", 1500, NULL, 7, NULL, 0);
+//TODO: FreeRTOS to Zephyr
+	// xTaskCreatePinnedToCore(&gpioTask, "GPIO", 1500, NULL, 7, NULL, 0);
 
     //install gpio isr service
     gpio_install_isr_service(ESP_INTR_FLAG_SHARED);
