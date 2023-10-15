@@ -10,6 +10,9 @@
 - commented out all FreeRTOS function calls from prboom-esp32-compat
 - Excluded psxcontroller.c from build using Makefile filter-out(Thanks ChatGPT)
 
+### Status
+- The libraries prboom, prboom_esp32s3, prboom_wad_tables build properly with zephyr west build tool 
+
 ## [0.0.0] - 2023-10-15
 
 ### Added OR Changed
