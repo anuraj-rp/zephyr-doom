@@ -54,9 +54,10 @@
 #include "w_wad.h"
 #include "tables.h"
 
-#include "SINETABL.h"
-#include "TANGTABL.h"
-#include "TANTOANG.h"
+//Hack because it is not find the trigno tables in prboom-wad-tables
+#include "../prboom-wad-tables/include/SINETABL.h"
+#include "../prboom-wad-tables/include/TANGTABL.h"
+#include "../prboom-wad-tables/include/TANTOANG.h"
 
 // killough 5/3/98: reformatted
 

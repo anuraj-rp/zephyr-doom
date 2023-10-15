@@ -503,8 +503,8 @@ static unsigned short *Palettes16 = NULL;
 static unsigned int *Palettes32 = NULL;
 static int currentPaletteIndex = 0;
 
-
-#include "GAMMATBL.h"
+//HACK to find include 
+#include "../prboom-wad-tables/include/GAMMATBL.h"
 //
 // V_UpdateTrueColorPalette
 //

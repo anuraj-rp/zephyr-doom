@@ -12,6 +12,10 @@ zephyr_get_system_include_directories_for_lang_as_string(   C z_system_includes)
 zephyr_get_compile_definitions_for_lang_as_string(          C z_compile_definitions)
 zephyr_get_compile_options_for_lang_as_string(              C z_compile_options)
 
+set(ESP_MD5_HEADER "/home/rovermaker/source/zephyr-projects/zephyr-doom/modules/hal/espressif/zephyr/esp32s3/../../components/wpa_supplicant/src/crypto")
+
+string(REPLACE ESP_MD5_HEADER "" z_includes ${z_includes})
+
 set(external_project_cflags
     "${z_includes} ${z_system_includes} ${z_compile_definitions} ${z_compile_options}"
 )
@@ -90,11 +94,12 @@ add_library(prboom_lib STATIC IMPORTED GLOBAL)
 add_dependencies(
     prboom_lib
     prboom
+    prboom_wad_lib
 )
-
+target_link_libraries(prboom_lib INTERFACE prboom_wad_lib)
 set_target_properties(prboom_lib PROPERTIES IMPORTED_LOCATION ${PRBOOM_DIR}/libprboom.a)
 set_target_properties(prboom_lib PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${PRBOOM_INCLUDE_DIR})
 
 
-target_link_libraries(app PUBLIC prboom_wad_lib)
+target_link_libraries(app PUBLIC prboom_wad_lib prboom_lib)
 

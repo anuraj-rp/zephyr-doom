@@ -2,7 +2,7 @@ SRC_DIR := .
 PREFIX ?= .
 OBJ_DIR ?= $(PREFIX)/obj
 LIB_DIR ?= $(PREFIX)/lib
-INC_DIR := ./include
+INC_DIR := ./include ../prboom-wad-tables/include/
 
 # Glob all .c files in the source directory
 SRC_FILES := $(wildcard $(SRC_DIR)/*.c)
@@ -25,7 +25,7 @@ $(LIBRARY): $(OBJ_FILES)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	mkdir -p $(OBJ_DIR)
-	$(CC) $(CFLAGS) $(INC_FLAGS) -c $< -o $@ -I./include
+	$(CC) $(INC_FLAGS) $(CFLAGS) -c $< -o $@
 
 clean:
 	rm -rf $(OBJ_DIR) $(LIB_DIR) $(TARGET)
