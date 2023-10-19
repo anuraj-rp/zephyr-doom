@@ -3,6 +3,14 @@
 ## [0.0.0] - 2023-10-19
 
 ### Added OR Changed
+- Created two threads gpioTask and blink printing text from each thread.
+
+### Status
+- Compilation with multithreading works. Tested via uart printing.
+
+## [0.0.0] - 2023-10-19
+
+### Added OR Changed
 - Added gamepad.c with zephyr kernel function calls in it. Uncommented a lot of code 
 - Added target_link_libraries(external_lib INTERFACE kernel) to allow external library to find kernel symbols
     - Related Issue here - https://github.com/zephyrproject-rtos/zephyr/issues/31613

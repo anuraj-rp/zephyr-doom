@@ -14,6 +14,7 @@
 
 
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "doomdef.h"
 #include "doomtype.h"
@@ -103,7 +104,7 @@ static void gpio_isr_handler(void* arg)
 }
 
 
-void gpioTask(void *arg) {
+void gpioTask(void *dummy1, void *dummy2, void *dummy3) {
     uint32_t io_num;
 	int level;
 	event_t ev;
@@ -128,8 +129,9 @@ void gpioTask(void *arg) {
 
     while (1) {
         /* get a data item */
-        k_msgq_get(&gpio_q, &button, K_FOREVER);
-
+        //k_msgq_get(&gpio_q, &button, K_FOREVER);
+		printf("Gpio Task\n");
+		k_msleep(400);
     }
 
 }
@@ -138,6 +140,16 @@ void gamepadInit(void)
 {
 	lprintf(LO_INFO, "gamepadInit: Initializing game pad.\n");
 }
+
+/* size of stack area used by each thread */
+#define STACKSIZE 1024
+
+/* scheduling priority used by each thread */
+#define PRIORITY 7
+
+K_THREAD_STACK_DEFINE(gpioTask_stack_area, STACKSIZE);
+static struct k_thread gpioTask_data;
+
 
 void jsInit(void) 
 {
@@ -168,15 +180,19 @@ void jsInit(void)
 	//Initialize the queue
 	k_msgq_init(&gpio_q, gpio_buffer, sizeof(gpio_t), 50);
     //start gpio task
-//TODO: FreeRTOS to Zephyr
+	//FreeRTOS to Zephyr
 	// xTaskCreatePinnedToCore(&gpioTask, "GPIO", 1500, NULL, 7, NULL, 0);
-
-    //install gpio isr service
+	k_thread_create(&gpioTask_data, gpioTask_stack_area,
+			K_THREAD_STACK_SIZEOF(gpioTask_stack_area),
+			gpioTask, NULL, NULL, NULL,
+			PRIORITY, 0, K_FOREVER);
+	k_thread_name_set(&gpioTask_data, "thread_gpio");    //install gpio isr service
+	k_thread_start(&gpioTask_data);
     // gpio_install_isr_service(ESP_INTR_FLAG_SHARED);
     //hook isr handler for specific gpio pin
 	// for (int i=0; keymap[i].key!=NULL; i++)
     // 	gpio_isr_handler_add(keymap[i].gpio, gpio_isr_handler, (void*) keymap[i].gpio);
 
-	printf(LO_INFO, "jsInit: GPIO task created.\n");
+	printf("jsInit: GPIO task created.\n");
 }
 
