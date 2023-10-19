@@ -97,7 +97,7 @@ add_dependencies(
 
 set_target_properties(prboom_esp32s3_lib PROPERTIES IMPORTED_LOCATION ${PRBOOM_ESP32S3_DIR}/libprboom_esp32s3.a)
 set_target_properties(prboom_esp32s3_lib PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${PRBOOM_ESP32S3_INCLUDE_DIR})
-
+target_link_libraries(prboom_esp32s3_lib INTERFACE kernel)
 
 # Build prboom.a
 
