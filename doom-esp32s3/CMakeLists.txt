@@ -85,7 +85,8 @@ ExternalProject_Add(
     AR=${CMAKE_AR}
     CFLAGS=${external_project_cflags}
     INSTALL_COMMAND ""      # This particular build system has no install command
-    BUILD_BYPRODUCTS ${PRBOOM_ESP32S3_DIR}/libprboom_esp32s3.a    
+    BUILD_BYPRODUCTS ${PRBOOM_ESP32S3_DIR}/libprboom_esp32s3.a
+    DEPENDS zephyr_interface    
 )
 
 add_library(prboom_esp32s3_lib STATIC IMPORTED GLOBAL)

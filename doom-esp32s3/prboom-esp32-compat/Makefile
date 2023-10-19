@@ -5,10 +5,13 @@ LIB_DIR ?= $(PREFIX)/lib
 INC_DIR := ./include ../prboom/include ../prboom-wad-tables/include
 
 # Specific file to be excluded
-EXCLUDE_FILE := psxcontroller.c
+EXCLUDE_FILES := psxcontroller.c
+
+# Create a list of files to exclude prefixed with $(SRC_DIR)/
+EXCLUDE_FILES_FULL := $(addprefix $(SRC_DIR)/, $(EXCLUDE_FILES))
 
 # Glob all .c files in the source directory
-SRC_FILES := $(filter-out $(SRC_DIR)/$(EXCLUDE_FILE), $(wildcard $(SRC_DIR)/*.c))
+SRC_FILES := $(filter-out $(SRC_DIR)/$(EXCLUDE_FILES), $(wildcard $(SRC_DIR)/*.c))
 OBJ_FILES := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRC_FILES))
 
 LIBRARY := $(LIB_DIR)/libprboom_esp32s3.a

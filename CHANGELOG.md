@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.0.0] - 2023-10-19
+
+### Added OR Changed
+- Added gamepad.c with zephyr/kernel.h includes to port it
+- Added DEPEDNS zephyr_interface to the ExternalProject_Add invocation of prboom_esp32s3 lib build via ExternalProject_Add
+    - Solution mentioned here - https://github.com/zephyrproject-rtos/zephyr/issues/32537
+
+### Status
+- The libraries prboom, prboom_esp32s3, prboom_wad_tables build properly with zephyr west build tool with zephyr includes needed
+
 ## [0.0.0] - 2023-10-15
 
 ### Added OR Changed
