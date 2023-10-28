@@ -31,12 +31,22 @@
 // // #include "freertos/queue.h"
 // // #include "driver/gpio.h"
 #include <zephyr/kernel.h>
-
+#include <zephyr/device.h>
+#include <zephyr/drivers/gpio.h>
 //The gamepad uses keyboard emulation, but for compilation, these variables need to be placed
 //somewhere. This is as good a place as any.
 int usejoystick=0;
 int joyleft, joyright, joyup, joydown;
 
+static const struct gpio_dt_spec buttonUp = GPIO_DT_SPEC_GET(DT_NODELABEL(button_up), gpios);
+static const struct gpio_dt_spec buttonRight = GPIO_DT_SPEC_GET(DT_NODELABEL(button_right), gpios);
+static const struct gpio_dt_spec buttonDown = GPIO_DT_SPEC_GET(DT_NODELABEL(button_down), gpios);
+static const struct gpio_dt_spec buttonLeft = GPIO_DT_SPEC_GET(DT_NODELABEL(button_left), gpios);
+
+
+
+static struct gpio_callback button_cb_data;
+static struct gpio_callback buttonB_cb_data;
 
 //atomic, for communication between joy thread and main game thread
 volatile int joyVal=0;
@@ -48,13 +58,13 @@ typedef struct {
 
 //Mappings from PS2 buttons to keys
 static const GPIOKeyMap keymap[]={
-	{35, &key_up},
-	{37, &key_down},
-	{38, &key_left},
-	{36, &key_right},
+	{19, &key_up},
+	{21, &key_down},
+	{4, &key_left},
+	{20, &key_right},
 	
-	{39, &key_use},				//cross
-	{40, &key_fire},			//circle
+	{1, &key_use},				//cross
+	{2, &key_fire},			//circle
 	{39, &key_menu_enter},
 	{0, NULL},
 };
@@ -90,13 +100,32 @@ gpio_t gpio_buffer[50*sizeof(gpio_t)];
 
 struct k_msgq gpio_q;
 
-static void gpio_isr_handler(void* arg)
+#define FIND_LSB_SET_BIT_POSITION(value, position) \
+    do { \
+        position = 0; \
+        if (value) { \
+            while (!(value & 1)) { \
+                value >>= 1; \
+                position++; \
+            } \
+        } \
+    } while(0)
+
+#define GPIO_INTR_ENABLE ( BIT(buttonUp.pin) | BIT(buttonRight.pin) \ 
+						| BIT(buttonDown.pin) | BIT(buttonLeft.pin) )
+
+void gpio_isr_handler(const struct device* dev, 
+					struct gpio_callback *cb,
+					uint32_t pins)
 {
 	//FreeRTOS to Zephyr
     // uint32_t gpio_num = (uint32_t) arg;
 	// xQueueSendFromISR(gpio_evt_queue, &gpio_num, NULL);
+	//printf("gpio ISR called with pin: %x\n", pins);
 	gpio_t button;
-	button.gpio_num = (uint32_t) arg;
+	uint32_t pinNum;
+	FIND_LSB_SET_BIT_POSITION(pins, pinNum);
+	button.gpio_num = (uint32_t) pinNum;
 	while(k_msgq_put(&gpio_q, &button, K_NO_WAIT) != 0)
 	{
 		k_msgq_purge(&gpio_q);
@@ -129,9 +158,10 @@ void gpioTask(void *dummy1, void *dummy2, void *dummy3) {
 
     while (1) {
         /* get a data item */
-        //k_msgq_get(&gpio_q, &button, K_FOREVER);
-		printf("Gpio Task\n");
-		k_msleep(400);
+        k_msgq_get(&gpio_q, &button, K_FOREVER);
+		printf("Button Pressed: %d\n", button.gpio_num);
+		// printf("Gpio Task\n");
+		// k_msleep(400);
     }
 
 }
@@ -153,7 +183,7 @@ static struct k_thread gpioTask_data;
 
 void jsInit(void) 
 {
-	// TODO: FreeRTOS-->Zephyr
+	// FreeRTOS-->Zephyr
 	// gpio_config_t io_conf;
     // //disable pull-down mode
     // io_conf.pull_down_en = 0;
@@ -192,6 +222,29 @@ void jsInit(void)
     //hook isr handler for specific gpio pin
 	// for (int i=0; keymap[i].key!=NULL; i++)
     // 	gpio_isr_handler_add(keymap[i].gpio, gpio_isr_handler, (void*) keymap[i].gpio);
+
+	if(!device_is_ready(buttonUp.port))
+	{
+		printf("GPIO CTRL or Button not ready!");
+		while(true);		
+	}
+	int ret;
+	ret = gpio_pin_configure_dt(&buttonUp, GPIO_INPUT);
+	ret |= gpio_pin_configure_dt(&buttonRight, GPIO_INPUT);
+	ret |= gpio_pin_configure_dt(&buttonDown, GPIO_INPUT);
+	ret |= gpio_pin_configure_dt(&buttonLeft, GPIO_INPUT);
+
+	ret |= gpio_pin_interrupt_configure_dt(&buttonUp, GPIO_INT_EDGE_TO_ACTIVE);
+	ret |= gpio_pin_interrupt_configure_dt(&buttonRight, GPIO_INT_EDGE_TO_ACTIVE);
+	ret |= gpio_pin_interrupt_configure_dt(&buttonDown, GPIO_INT_EDGE_TO_ACTIVE);
+	ret |= gpio_pin_interrupt_configure_dt(&buttonLeft, GPIO_INT_EDGE_TO_ACTIVE);
+
+
+	gpio_init_callback(&button_cb_data, gpio_isr_handler, GPIO_INTR_ENABLE);
+	//gpio_init_callback(&button_cb_data, gpio_isr_handler, BIT(buttonUp.pin));
+	//gpio_init_callback(&buttonB_cb_data, button_pressed, BIT(buttonB.pin));
+	gpio_add_callback(buttonUp.port, &button_cb_data);
+	// gpio_add_callback(buttonRight.port, &button_cb_data);
 
 	printf("jsInit: GPIO task created.\n");
 }

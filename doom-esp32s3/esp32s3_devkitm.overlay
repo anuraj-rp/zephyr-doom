@@ -1,3 +1,34 @@
+/ {
+    leds {
+        compatible = "gpio-leds";
+        blinking_led: blinking_led {
+            gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;
+        };
+    };
+    
+    buttons {
+        compatible = "gpio-keys";
+        button_up: button_up {
+            gpios = < &gpio0 19 GPIO_ACTIVE_HIGH >;
+            label = "KeyUp";
+        };
+        button_right: button_right {
+            gpios = < &gpio0 20 GPIO_ACTIVE_HIGH >;
+            label = "KeyRight";
+        };
+
+        button_down: button_down {
+            gpios = < &gpio0 21 GPIO_ACTIVE_HIGH >;
+            label = "KeyDown";
+        };
+
+        button_left: button_left {
+            gpios = < &gpio0 4 GPIO_ACTIVE_HIGH >;
+            label = "KeyLeft";
+        };
+
+    };
+};
 
 &spi2 {
     status = "okay";

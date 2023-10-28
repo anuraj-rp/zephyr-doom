@@ -3,6 +3,18 @@
 ## [0.0.0] - 2023-10-19
 
 ### Added OR Changed
+- Added GPIO keys on pins 19, 20, 21 and 4 for up, right, down and left respectively
+- Add blinky thread that blinks led on pin2 every 200ms
+- Device tree changes to add GPIO keys and led
+- Added ISR handler for the GPIO key press
+
+### Status
+- The gpio key press prints the number of the pin pressed
+- Blinky thread blinks led every 200ms
+
+## [0.0.0] - 2023-10-19
+
+### Added OR Changed
 - Created two threads gpioTask and blink printing text from each thread.
 
 ### Status
