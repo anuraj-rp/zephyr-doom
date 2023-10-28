@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.0.0] - 2023-10-19
+## [0.0.0] - 2023-10-28
 
 ### Added OR Changed
 - Added GPIO keys on pins 19, 20, 21 and 4 for up, right, down and left respectively
